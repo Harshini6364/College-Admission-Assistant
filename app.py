@@ -191,7 +191,7 @@ if query:
     st.session_state.messages.append(("user", query))
 
     # Retrieve relevant documents
-    relevant_docs = retriever.get_relevant_documents(query)
+    relevant_docs = retriever.invoke(query)
 
     # Combine context
     context = "\n".join([doc.page_content for doc in relevant_docs])
