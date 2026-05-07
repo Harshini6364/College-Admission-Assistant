@@ -7,13 +7,12 @@
 # sentence-transformers
 # python-dotenv
 # langchain-text-splitters
-streamlit==1.45.1
-langchain==0.3.25
-langchain-community==0.3.24
-langchain-groq==0.3.2
-langchain-text-splitters==0.3.8
-chromadb==0.5.23
-pypdf==5.5.0
-sentence-transformers==4.1.0
-python-dotenv==1.1.0
-protobuf==3.20.3
+streamlit
+langchain
+langchain-community
+langchain-groq
+langchain-text-splitters
+faiss-cpu
+pypdf
+sentence-transformers
+python-dotenv

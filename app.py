@@ -1,3 +1,120 @@
+# import os
+# import streamlit as st
+
+# from dotenv import load_dotenv
+
+# from langchain_community.document_loaders import PyPDFLoader
+# from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+# from langchain_community.vectorstores import FAISS
+# from langchain_community.embeddings import HuggingFaceEmbeddings
+
+# from langchain_groq import ChatGroq
+
+# # Load environment variables
+# load_dotenv()
+
+# # Streamlit page settings
+# st.set_page_config(page_title="College Admission Assistant")
+
+# st.title("🎓 College Admission Assistant")
+# st.write("Ask questions about admission, fees, hostel, scholarships, etc.")
+# st.header("Ask questions like:")
+# st.write("1.What is the admission process?")
+# st.write("2.What documents are required?")
+# # Load PDF documents
+# documents = []
+
+# pdf_folder = "data"
+
+# for file in os.listdir(pdf_folder):
+#     if file.endswith(".pdf"):
+#         loader = PyPDFLoader(os.path.join(pdf_folder, file))
+#         documents.extend(loader.load())
+
+# # Split documents into chunks
+# text_splitter = RecursiveCharacterTextSplitter(
+#     chunk_size=1000,
+#     chunk_overlap=200
+# )
+
+# docs = text_splitter.split_documents(documents)
+
+# # Load embedding model
+# embedding_model = HuggingFaceEmbeddings(
+#     model_name="sentence-transformers/all-MiniLM-L6-v2"
+# )
+
+# # Create vector database
+# # if not os.path.exists("chroma_db"):
+# #     vectorstore = Chroma.from_documents(
+# #         documents=docs,
+# #         embedding=embedding_model,
+# #         persist_directory="chroma_db"
+# #     )
+# # else:
+# #     vectorstore = Chroma(
+# #         persist_directory="chroma_db",
+# #         embedding_function=embedding_model
+# #     )
+# vectorstore = FAISS.from_documents(
+#     docs,
+#     embedding_model
+# )
+
+# # Create retriever
+# retriever = vectorstore.as_retriever()
+
+# # Load Groq LLM
+# llm = ChatGroq(
+#     groq_api_key=os.getenv("GROQ_API_KEY"),
+#     model_name="llama-3.1-8b-instant",
+#     temperature=0
+# )
+
+# # Chat history
+# if "messages" not in st.session_state:
+#     st.session_state.messages = []
+
+# # Chat input
+# query = st.chat_input("Ask a question")
+
+# if query:
+
+#     # Add user message
+#     st.session_state.messages.append(("user", query))
+
+#     # Retrieve relevant documents
+#     relevant_docs = retriever.get_relevant_documents(query)
+
+#     # Combine document contents
+#     context = "\n".join([doc.page_content for doc in relevant_docs])
+
+#     # Prompt
+#     prompt = f"""
+#     You are a helpful college admission assistant.
+
+#     Answer the question only using the context below.
+
+#     Context:
+#     {context}
+
+#     Question:
+#     {query}
+#     """
+
+#     # Generate response
+#     response = llm.invoke(prompt)
+
+#     # Store assistant response
+#     st.session_state.messages.append(
+#         ("assistant", response.content)
+#     )
+
+# # Display chat messages
+# for role, msg in st.session_state.messages:
+#     with st.chat_message(role):
+#         st.write(msg)
 import os
 import streamlit as st
 
@@ -6,7 +123,7 @@ from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
 from langchain_groq import ChatGroq
@@ -14,15 +131,15 @@ from langchain_groq import ChatGroq
 # Load environment variables
 load_dotenv()
 
-# Streamlit page settings
+# Streamlit settings
 st.set_page_config(page_title="College Admission Assistant")
 
 st.title("🎓 College Admission Assistant")
-st.write("Ask questions about admission, fees, hostel, scholarships, etc.")
-st.header("Ask questions like:")
+st.header("Ask questions about admissions, fees, hostel, scholarships, etc.")
+st.subheader("Ask questions like:")
 st.write("1.What is the admission process?")
 st.write("2.What documents are required?")
-# Load PDF documents
+# Load PDFs
 documents = []
 
 pdf_folder = "data"
@@ -32,7 +149,7 @@ for file in os.listdir(pdf_folder):
         loader = PyPDFLoader(os.path.join(pdf_folder, file))
         documents.extend(loader.load())
 
-# Split documents into chunks
+# Split documents
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1000,
     chunk_overlap=200
@@ -40,28 +157,21 @@ text_splitter = RecursiveCharacterTextSplitter(
 
 docs = text_splitter.split_documents(documents)
 
-# Load embedding model
+# Embedding model
 embedding_model = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
 
-# Create vector database
-if not os.path.exists("chroma_db"):
-    vectorstore = Chroma.from_documents(
-        documents=docs,
-        embedding=embedding_model,
-        persist_directory="chroma_db"
-    )
-else:
-    vectorstore = Chroma(
-        persist_directory="chroma_db",
-        embedding_function=embedding_model
-    )
+# Create FAISS vector store
+vectorstore = FAISS.from_documents(
+    docs,
+    embedding_model
+)
 
-# Create retriever
+# Retriever
 retriever = vectorstore.as_retriever()
 
-# Load Groq LLM
+# Groq model
 llm = ChatGroq(
     groq_api_key=os.getenv("GROQ_API_KEY"),
     model_name="llama-3.1-8b-instant",
@@ -72,25 +182,25 @@ llm = ChatGroq(
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Chat input
-query = st.chat_input("Ask a question")
+# User input
+query = st.chat_input("Ask your question")
 
 if query:
 
-    # Add user message
+    # Store user message
     st.session_state.messages.append(("user", query))
 
     # Retrieve relevant documents
     relevant_docs = retriever.get_relevant_documents(query)
 
-    # Combine document contents
+    # Combine context
     context = "\n".join([doc.page_content for doc in relevant_docs])
 
     # Prompt
     prompt = f"""
     You are a helpful college admission assistant.
 
-    Answer the question only using the context below.
+    Answer only from the provided context.
 
     Context:
     {context}
@@ -107,7 +217,7 @@ if query:
         ("assistant", response.content)
     )
 
-# Display chat messages
+# Display chat
 for role, msg in st.session_state.messages:
     with st.chat_message(role):
         st.write(msg)
