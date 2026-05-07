@@ -9,20 +9,18 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
-from langchain.chains.retrieval_qa.base import RetrievalQA
-
 from langchain_groq import ChatGroq
 
-# Load API key
+# Load environment variables
 load_dotenv()
 
-# Streamlit page
+# Streamlit page settings
 st.set_page_config(page_title="College Admission Assistant")
 
 st.title("🎓 College Admission Assistant")
 st.write("Ask questions about admission, fees, hostel, scholarships, etc.")
 
-# Load PDFs
+# Load PDF documents
 documents = []
 
 pdf_folder = "data"
@@ -32,7 +30,7 @@ for file in os.listdir(pdf_folder):
         loader = PyPDFLoader(os.path.join(pdf_folder, file))
         documents.extend(loader.load())
 
-# Split text into chunks
+# Split documents into chunks
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1000,
     chunk_overlap=200
@@ -40,18 +38,19 @@ text_splitter = RecursiveCharacterTextSplitter(
 
 docs = text_splitter.split_documents(documents)
 
-# Embedding model
+# Load embedding model
 embedding_model = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
 
 # Create vector database
 vectorstore = Chroma.from_documents(
-    docs,
-    embedding_model,
+    documents=docs,
+    embedding=embedding_model,
     persist_directory="chroma_db"
 )
 
+# Create retriever
 retriever = vectorstore.as_retriever()
 
 # Load Groq LLM
@@ -61,13 +60,7 @@ llm = ChatGroq(
     temperature=0
 )
 
-# Create QA chain
-qa_chain = RetrievalQA.from_chain_type(
-    llm=llm,
-    retriever=retriever
-)
-
-# Chat memory
+# Chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -75,13 +68,38 @@ if "messages" not in st.session_state:
 query = st.chat_input("Ask a question")
 
 if query:
+
+    # Add user message
     st.session_state.messages.append(("user", query))
 
-    response = qa_chain.run(query)
+    # Retrieve relevant documents
+    relevant_docs = retriever.get_relevant_documents(query)
 
-    st.session_state.messages.append(("assistant", response))
+    # Combine document contents
+    context = "\n".join([doc.page_content for doc in relevant_docs])
 
-# Display messages
+    # Prompt
+    prompt = f"""
+    You are a helpful college admission assistant.
+
+    Answer the question only using the context below.
+
+    Context:
+    {context}
+
+    Question:
+    {query}
+    """
+
+    # Generate response
+    response = llm.invoke(prompt)
+
+    # Store assistant response
+    st.session_state.messages.append(
+        ("assistant", response.content)
+    )
+
+# Display chat messages
 for role, msg in st.session_state.messages:
     with st.chat_message(role):
         st.write(msg)
