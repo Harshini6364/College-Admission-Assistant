@@ -19,7 +19,9 @@ st.set_page_config(page_title="College Admission Assistant")
 
 st.title("🎓 College Admission Assistant")
 st.write("Ask questions about admission, fees, hostel, scholarships, etc.")
-
+st.header("Ask questions like:")
+st.write("1.What is the admission process?")
+st.write("2.What documents are required?")
 # Load PDF documents
 documents = []
 
@@ -44,11 +46,17 @@ embedding_model = HuggingFaceEmbeddings(
 )
 
 # Create vector database
-vectorstore = Chroma.from_documents(
-    documents=docs,
-    embedding=embedding_model,
-    persist_directory="chroma_db"
-)
+if not os.path.exists("chroma_db"):
+    vectorstore = Chroma.from_documents(
+        documents=docs,
+        embedding=embedding_model,
+        persist_directory="chroma_db"
+    )
+else:
+    vectorstore = Chroma(
+        persist_directory="chroma_db",
+        embedding_function=embedding_model
+    )
 
 # Create retriever
 retriever = vectorstore.as_retriever()

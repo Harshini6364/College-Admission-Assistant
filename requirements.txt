@@ -1,9 +1,23 @@
-streamlit
-langchain
-langchain-community
-langchain-groq
-chromadb
-pypdf
-sentence-transformers
-python-dotenv
-langchain-text-splitters
+# streamlit
+# langchain
+# langchain-community
+# langchain-groq
+# chromadb
+# pypdf
+# sentence-transformers
+# python-dotenv
+# langchain-text-splitters
+streamlit==1.35.0
+
+langchain==0.2.6
+langchain-community==0.2.6
+langchain-groq==0.1.5
+
+chromadb==0.5.3
+
+pypdf==4.2.0
+sentence-transformers==2.7.0
+
+python-dotenv==1.0.1
+
+protobuf==3.20.3
