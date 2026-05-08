@@ -1,15 +1,15 @@
-streamlit==1.45.1
-python-dotenv==1.1.0
+streamlit
+python-dotenv
 
-langchain==0.3.25
-langchain-community==0.3.24
-langchain-text-splitters==0.3.8
-langchain-core==0.3.63
+langchain
+langchain-community
+langchain-text-splitters
+langchain-core
 
-langchain-groq==0.3.2
-langchain-pinecone==0.2.8
+langchain-groq
+langchain-pinecone
 
-pinecone==7.0.2
+pinecone
 
-sentence-transformers==4.1.0
-pypdf==5.5.0
+sentence-transformers
+pypdf
