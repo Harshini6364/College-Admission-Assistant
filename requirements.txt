@@ -1,18 +1,15 @@
-# streamlit
-# langchain
-# langchain-community
-# langchain-groq
-# chromadb
-# pypdf
-# sentence-transformers
-# python-dotenv
-# langchain-text-splitters
-streamlit
-langchain
-langchain-community
-langchain-groq
-langchain-text-splitters
-faiss-cpu
-pypdf
-sentence-transformers
-python-dotenv
+streamlit==1.45.1
+python-dotenv==1.1.0
+
+langchain==0.3.25
+langchain-community==0.3.24
+langchain-text-splitters==0.3.8
+langchain-core==0.3.63
+
+langchain-groq==0.3.2
+langchain-pinecone==0.2.8
+
+pinecone==7.0.2
+
+sentence-transformers==4.1.0
+pypdf==5.5.0
