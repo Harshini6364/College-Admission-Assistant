@@ -1,147 +1,37 @@
-# import os
-# import streamlit as st
-
-# from dotenv import load_dotenv
-
-# from langchain_community.document_loaders import PyPDFLoader
-# from langchain_text_splitters import RecursiveCharacterTextSplitter
-
-# from langchain_community.vectorstores import FAISS
-# from langchain_community.embeddings import HuggingFaceEmbeddings
-
-# from langchain_groq import ChatGroq
-
-# # Load environment variables
-# load_dotenv()
-
-# # Streamlit page settings
-# st.set_page_config(page_title="College Admission Assistant")
-
-# st.title("🎓 College Admission Assistant")
-# st.write("Ask questions about admission, fees, hostel, scholarships, etc.")
-# st.header("Ask questions like:")
-# st.write("1.What is the admission process?")
-# st.write("2.What documents are required?")
-# # Load PDF documents
-# documents = []
-
-# pdf_folder = "data"
-
-# for file in os.listdir(pdf_folder):
-#     if file.endswith(".pdf"):
-#         loader = PyPDFLoader(os.path.join(pdf_folder, file))
-#         documents.extend(loader.load())
-
-# # Split documents into chunks
-# text_splitter = RecursiveCharacterTextSplitter(
-#     chunk_size=1000,
-#     chunk_overlap=200
-# )
-
-# docs = text_splitter.split_documents(documents)
-
-# # Load embedding model
-# embedding_model = HuggingFaceEmbeddings(
-#     model_name="sentence-transformers/all-MiniLM-L6-v2"
-# )
-
-# # Create vector database
-# # if not os.path.exists("chroma_db"):
-# #     vectorstore = Chroma.from_documents(
-# #         documents=docs,
-# #         embedding=embedding_model,
-# #         persist_directory="chroma_db"
-# #     )
-# # else:
-# #     vectorstore = Chroma(
-# #         persist_directory="chroma_db",
-# #         embedding_function=embedding_model
-# #     )
-# vectorstore = FAISS.from_documents(
-#     docs,
-#     embedding_model
-# )
-
-# # Create retriever
-# retriever = vectorstore.as_retriever()
-
-# # Load Groq LLM
-# llm = ChatGroq(
-#     groq_api_key=os.getenv("GROQ_API_KEY"),
-#     model_name="llama-3.1-8b-instant",
-#     temperature=0
-# )
-
-# # Chat history
-# if "messages" not in st.session_state:
-#     st.session_state.messages = []
-
-# # Chat input
-# query = st.chat_input("Ask a question")
-
-# if query:
-
-#     # Add user message
-#     st.session_state.messages.append(("user", query))
-
-#     # Retrieve relevant documents
-#     relevant_docs = retriever.get_relevant_documents(query)
-
-#     # Combine document contents
-#     context = "\n".join([doc.page_content for doc in relevant_docs])
-
-#     # Prompt
-#     prompt = f"""
-#     You are a helpful college admission assistant.
-
-#     Answer the question only using the context below.
-
-#     Context:
-#     {context}
-
-#     Question:
-#     {query}
-#     """
-
-#     # Generate response
-#     response = llm.invoke(prompt)
-
-#     # Store assistant response
-#     st.session_state.messages.append(
-#         ("assistant", response.content)
-#     )
-
-# # Display chat messages
-# for role, msg in st.session_state.messages:
-#     with st.chat_message(role):
-#         st.write(msg)
 import os
+import time
 import streamlit as st
-
 from dotenv import load_dotenv
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
-
 from langchain_groq import ChatGroq
 
-# Load environment variables
+from pinecone import Pinecone, ServerlessSpec
+from langchain_pinecone import PineconeVectorStore
+
+# ---------------------------
+# LOAD ENV VARIABLES
+# ---------------------------
 load_dotenv()
 
-# Streamlit settings
+# ---------------------------
+# STREAMLIT UI SETTINGS
+# ---------------------------
 st.set_page_config(page_title="College Admission Assistant")
 
 st.title("🎓 College Admission Assistant")
-st.header("Ask questions about admissions, fees, hostel, scholarships, etc.")
-st.subheader("Ask questions like:")
-st.write("1.What is the admission process?")
-st.write("2.What documents are required?")
-# Load PDFs
-documents = []
+st.write("Ask questions about admissions, fees, hostel, scholarships, etc.")
+st.subheader("Example questions:")
+st.write("1. What is the admission process?")
+st.write("2. What documents are required?")
 
+# ---------------------------
+# LOAD PDF FILES
+# ---------------------------
+documents = []
 pdf_folder = "data"
 
 for file in os.listdir(pdf_folder):
@@ -149,7 +39,9 @@ for file in os.listdir(pdf_folder):
         loader = PyPDFLoader(os.path.join(pdf_folder, file))
         documents.extend(loader.load())
 
-# Split documents
+# ---------------------------
+# SPLIT TEXT INTO CHUNKS
+# ---------------------------
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1000,
     chunk_overlap=200
@@ -157,67 +49,134 @@ text_splitter = RecursiveCharacterTextSplitter(
 
 docs = text_splitter.split_documents(documents)
 
-# Embedding model
+# ---------------------------
+# EMBEDDING MODEL
+# ---------------------------
 embedding_model = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
 
-# Create FAISS vector store
-vectorstore = FAISS.from_documents(
-    docs,
-    embedding_model
+# ---------------------------
+# PINECONE SETUP
+# ---------------------------
+pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+
+index_name = "college-chatbot"
+
+# Create index if not exists
+if index_name not in pc.list_indexes().names():
+    pc.create_index(
+        name=index_name,
+        dimension=384,  # MiniLM embedding size
+        metric="cosine",
+        spec=ServerlessSpec(
+            cloud="aws",
+            region="us-east-1"
+        )
+    )
+
+# ---------------------------
+# VECTOR STORE (PINECONE)
+# ---------------------------
+vectorstore = PineconeVectorStore.from_documents(
+    documents=docs,
+    embedding=embedding_model,
+    index_name=index_name
 )
 
-# Retriever
 retriever = vectorstore.as_retriever()
 
-# Groq model
+# ---------------------------
+# GROQ LLM
+# ---------------------------
 llm = ChatGroq(
     groq_api_key=os.getenv("GROQ_API_KEY"),
     model_name="llama-3.1-8b-instant",
     temperature=0
 )
 
-# Chat history
+# ---------------------------
+# SESSION STATE (CHAT + CACHE)
+# ---------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# User input
+if "cache" not in st.session_state:
+    st.session_state.cache = {}
+
+# ---------------------------
+# USER INPUT
+# ---------------------------
 query = st.chat_input("Ask your question")
 
 if query:
 
-    # Store user message
+    # Start timer
+    start = time.time()
+
+    # store user message
     st.session_state.messages.append(("user", query))
 
-    # Retrieve relevant documents
-    relevant_docs = retriever.invoke(query)
+    # CACHE CHECK
+    if query in st.session_state.cache:
 
-    # Combine context
-    context = "\n".join([doc.page_content for doc in relevant_docs])
+        #st.info("⚡ Response from CACHE")
+        response_text = st.session_state.cache[query]
 
-    # Prompt
-    prompt = f"""
-    You are a helpful college admission assistant.
+    else:
 
-    Answer only from the provided context.
+        #st.info("🧠 Fresh response from Pinecone + LLM")
 
-    Context:
-    {context}
+        # retrieve relevant docs
+        relevant_docs = retriever.invoke(query)
 
-    Question:
-    {query}
-    """
+        # combine context
+        context = "\n".join(
+            [doc.page_content for doc in relevant_docs]
+        )
 
-    # Generate response
-    response = llm.invoke(prompt)
+        # prompt
+        prompt = f"""
+        You are a helpful college admission assistant.
+
+        Answer only using the context below.
+
+        Context:
+        {context}
+
+        Question:
+        {query}
+        """
+
+        # LLM response
+        response = llm.invoke(prompt)
+
+        response_text = response.content
+
+        # store in cache
+        st.session_state.cache[query] = response_text
+    # End timer
+    end = time.time()
+
+    # Calculate response time
+    response_time = round(end - start, 2)
+
+    # Final response with timing
+    final_response = f"""
+{response_text}
+
+---
+⏱️ **Response Time:** `{response_time} sec`
+"""
 
     # Store assistant response
     st.session_state.messages.append(
-        ("assistant", response.content)
+        ("assistant", final_response)
     )
 
-# Display chat
+# ---------------------------
+# DISPLAY CHAT UI
+# ---------------------------
 for role, msg in st.session_state.messages:
     with st.chat_message(role):
         st.write(msg)
